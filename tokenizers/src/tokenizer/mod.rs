@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
+    io::prelude::*,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
 };
@@ -131,7 +132,7 @@ pub enum EncodeInput {
     Dual(String, String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddedToken {
     /// The content of the added token
     pub content: String,
@@ -254,7 +255,7 @@ pub struct Tokenizer {
     split_re: regex::RegexSet,
 
     // General processing parameters
-    trunc: Option<TruncationParams>,
+    truncation: Option<TruncationParams>,
     padding: Option<PaddingParams>,
 }
 
@@ -275,7 +276,7 @@ impl Tokenizer {
             special_tokens_set: HashSet::new(),
             split_re: regex::RegexSet::new::<_, &&str>(&[]).unwrap(),
 
-            trunc: None,
+            truncation: None,
             padding: None,
         }
     }
@@ -342,7 +343,7 @@ impl Tokenizer {
 
     /// Set the truncation parameters
     pub fn with_truncation(&mut self, trunc: Option<TruncationParams>) -> &Self {
-        self.trunc = trunc;
+        self.truncation = trunc;
         self
     }
 
@@ -660,7 +661,7 @@ impl Tokenizer {
     ) -> Result<Encoding> {
         // 1. First we truncate if needed
         let (encoding, pair_encoding) = {
-            if let Some(trunc) = &self.trunc {
+            if let Some(trunc) = &self.truncation {
                 let n_added_tokens = if let Some(processor) = &self.post_processor {
                     processor.added_tokens(pair_encoding.is_some())
                 } else {
@@ -881,5 +882,24 @@ impl Tokenizer {
                 })
                 .collect()
         }
+    }
+
+    /// Serialize the current tokenizer as a String
+    pub fn to_string(&self, pretty: bool) -> Result<String> {
+        Ok(if pretty {
+            serde_json::to_string_pretty(self)?
+        } else {
+            serde_json::to_string(self)?
+        })
+    }
+
+    /// Save the current tokenizer at the given path
+    pub fn save(&self, path: &str, pretty: bool) -> Result<()> {
+        let serialized = self.to_string(pretty)?;
+
+        let mut file = File::create(path)?;
+        file.write_all(&serialized.as_bytes())?;
+
+        Ok(())
     }
 }

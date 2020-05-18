@@ -1,3 +1,5 @@
+import pickle
+
 from ..utils import data_dir, roberta_files
 
 from tokenizers import AddedToken, Tokenizer
@@ -66,6 +68,7 @@ class TestTokenizer:
         assert tokenizer.pre_tokenizer is None
         assert tokenizer.post_processor is None
         assert tokenizer.decoder is None
+        assert isinstance(pickle.loads(pickle.dumps(Tokenizer(BPE()))), Tokenizer)
 
     def test_add_tokens(self):
         tokenizer = Tokenizer(BPE())

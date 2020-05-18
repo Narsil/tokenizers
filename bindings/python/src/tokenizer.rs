@@ -88,7 +88,7 @@ impl PyObjectProtocol for AddedToken {
     }
 }
 
-#[pyclass(dict)]
+#[pyclass(dict, module = "tokenizers")]
 pub struct Tokenizer {
     tokenizer: tk::tokenizer::Tokenizer,
 }
@@ -105,6 +105,40 @@ impl Tokenizer {
                 "The Model is already being used in another Tokenizer",
             ))
         }
+    }
+
+    fn __getstate__(&self, py: Python) -> PyResult<PyObject> {
+        let data = serde_json::to_string(&self.tokenizer).map_err(|e| {
+            exceptions::Exception::py_err(format!(
+                "Error while attempting to pickle Tokenizer: {}",
+                e.to_string()
+            ))
+        })?;
+        Ok(PyBytes::new(py, data.as_bytes()).to_object(py))
+    }
+
+    fn __setstate__(&mut self, py: Python, state: PyObject) -> PyResult<()> {
+        match state.extract::<&PyBytes>(py) {
+            Ok(s) => {
+                self.tokenizer = serde_json::from_slice(s.as_bytes()).map_err(|e| {
+                    exceptions::Exception::py_err(format!(
+                        "Error while attempting to unpickle Tokenizer: {}",
+                        e.to_string()
+                    ))
+                })?;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn __getnewargs__<'p>(&self, py: Python<'p>) -> PyResult<&'p PyTuple> {
+        let model: PyObject = crate::models::Model {
+            model: Container::Owned(Box::new(tk::models::bpe::BPE::default())),
+        }
+        .into_py(py);
+        let args = PyTuple::new(py, vec![model]);
+        Ok(args)
     }
 
     #[staticmethod]

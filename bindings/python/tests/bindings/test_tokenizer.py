@@ -2,7 +2,7 @@ import pickle
 
 from ..utils import data_dir, roberta_files
 
-from tokenizers import AddedToken, Tokenizer
+from tokenizers import AddedToken, Tokenizer, Encoding
 from tokenizers.models import Model, BPE
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.processors import RobertaProcessing
@@ -107,6 +107,7 @@ class TestTokenizer:
         # Can encode a pair of sequences
         output = tokenizer.encode("my name is john", "pair")
         assert output.tokens == ["my", "name", "is", "john", "pair"]
+        assert isinstance(pickle.loads(pickle.dumps(output)), Encoding)
 
         # Can encode a batch with both a single sequence and a pair of sequences
         output = tokenizer.encode_batch(["my name is john", ("my name is john", "pair")])

@@ -307,7 +307,7 @@ impl Tokenizer {
                     },
                     add_special_tokens,
                 )
-                .map(Encoding::new),
+                .map(|e| e.into()),
         )
         .into()
     }
@@ -336,7 +336,7 @@ impl Tokenizer {
         ToPyResult(
             self.tokenizer
                 .encode_batch(inputs, add_special_tokens)
-                .map(|encodings| encodings.into_iter().map(Encoding::new).collect()),
+                .map(|encodings| encodings.into_iter().map(|e| e.into()).collect()),
         )
         .into()
     }
@@ -437,7 +437,7 @@ impl Tokenizer {
                     pair.map(|p| p.encoding.clone()),
                     add_special_tokens,
                 )
-                .map(Encoding::new),
+                .map(|e| e.into()),
         )
         .into()
     }

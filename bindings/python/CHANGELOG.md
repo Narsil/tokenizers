@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [#272]: Serialization of the `Tokenizer` and all the parts (`PreTokenizer`, `Normalizer`, ...).
 This adds some methods to easily save/load an entire tokenizer (`from_str`, `from_file`).
+- [#273]: `Tokenizer` and its parts are now pickable
 
 ### Changed
 - Improved errors generated during truncation: When the provided max length is too low are
@@ -172,6 +173,8 @@ delimiter (Works like `.split(delimiter)`)
 - Fix a bug with the IDs associated with added tokens.
 - Fix a bug that was causing crashes in Python 3.5
 
+[#273]: https://github.com/huggingface/tokenizers/pull/273
+[#272]: https://github.com/huggingface/tokenizers/pull/272
 [#239]: https://github.com/huggingface/tokenizers/pull/239
 [#236]: https://github.com/huggingface/tokenizers/pull/236
 [#234]: https://github.com/huggingface/tokenizers/pull/234

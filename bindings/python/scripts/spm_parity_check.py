@@ -2,6 +2,7 @@ import tokenizers
 from argparse import ArgumentParser
 import sentencepiece as spm
 import json
+import os
 
 
 def main():
@@ -35,6 +36,9 @@ def main():
         check_train(args)
     else:
         check_encode(args)
+
+    os.remove(f"{args.model_prefix}.model")
+    os.remove(f"{args.model_prefix}.vocab")
 
 
 def check_train(args):
@@ -77,6 +81,7 @@ def check_train(args):
     assert (
         tokenizer_tokens < spm_tokens
     ), "Our trainer should be at least more efficient than the SPM one"
+    print("Ok we are at least better than spm_train")
 
 
 def check_encode(args):
@@ -93,21 +98,25 @@ def check_encode(args):
     with open(vocab_filename, "w") as f:
         json.dump(data, f, indent=4)
 
-    tok = tokenizers.SentencePieceUnigramTokenizer(vocab_filename)
-    with open(args.input_file, "r") as f:
-        for i, line in enumerate(f):
-            line = line.strip()
-            ids = sp.EncodeAsIds(line)
+    try:
+        tok = tokenizers.SentencePieceUnigramTokenizer(vocab_filename)
+        with open(args.input_file, "r") as f:
+            for i, line in enumerate(f):
+                line = line.strip()
+                ids = sp.EncodeAsIds(line)
 
-            encoded = tok.encode(line)
+                encoded = tok.encode(line)
 
-            if ids != encoded.ids:
-                # Encoding can be the same with same result AAA -> A + AA vs AA + A
-                # We can check that we use at least exactly the same number of tokens.
-                assert len(ids) == len(encoded.ids)
-                continue
+                if ids != encoded.ids:
+                    # Encoding can be the same with same result AAA -> A + AA vs AA + A
+                    # We can check that we use at least exactly the same number of tokens.
+                    assert len(ids) == len(encoded.ids)
+                    continue
 
-            assert ids == encoded.ids, f"line {i}: {line} : {ids} != {encoded.ids}"
+                assert ids == encoded.ids, f"line {i}: {line} : {ids} != {encoded.ids}"
+    finally:
+        os.remove(vocab_filename)
+    print("Ok we have parity !")
 
 
 if __name__ == "__main__":

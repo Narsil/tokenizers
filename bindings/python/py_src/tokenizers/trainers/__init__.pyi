@@ -123,6 +123,7 @@ class UnigramTrainer(Trainer):
         vocab_size: int = 8000,
         show_progress: bool = True,
         special_tokens: List[Union[str, AddedToken]] = [],
+        space_char: str = "▁",
     ) -> Trainer:
         """ Instantiate a new UnigramTrainer with the given options:
 
@@ -135,6 +136,9 @@ class UnigramTrainer(Trainer):
 
             special_tokens: List[Union[str, AddedToken]]:
                 A list of special tokens the model should know of.
+
+            space_char: str:
+                Which character is used as a space (useful when using replacement character)
 
         Returns:
             Trainer

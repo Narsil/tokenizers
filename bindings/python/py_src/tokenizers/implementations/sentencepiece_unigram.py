@@ -38,6 +38,7 @@ class SentencePieceUnigramTokenizer(BaseTokenizer):
             "replacement": replacement,
             "add_prefix_space": add_prefix_space,
         }
+        self.replacement = replacement
 
         super().__init__(tokenizer, parameters)
 
@@ -47,11 +48,16 @@ class SentencePieceUnigramTokenizer(BaseTokenizer):
         vocab_size: int = 8000,
         show_progress: bool = True,
         special_tokens: List[Union[str, AddedToken]] = [],
+        space_char: Union[None, str] = None,
     ):
         """ Train the model using the given files """
+        space_char = space_char if space_char is not None else self.replacement
 
         trainer = trainers.UnigramTrainer(
-            vocab_size=vocab_size, special_tokens=special_tokens, show_progress=show_progress,
+            vocab_size=vocab_size,
+            special_tokens=special_tokens,
+            show_progress=show_progress,
+            space_char=space_char,
         )
 
         if isinstance(files, str):

@@ -106,9 +106,9 @@ impl UnigramTrainer {
     }
 
     fn is_valid_sentencepiece(&self, char_string: &[char]) -> bool {
-        // TODO check more formally but should be ok.
         // Checks string length, space not in the substring, numbers, hiragana and more
         // https://github.com/google/sentencepiece/blob/26be9516cd81d5315ee31c48d2438018e0eab879/src/trainer_interface.cc#L203
+
         let n = char_string.len();
         if char_string.is_empty() || n > self.max_piece_length {
             return false;

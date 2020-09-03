@@ -193,6 +193,18 @@ impl PyUnigramTrainer {
                     "unk_token" => builder.unk_token(val.extract()?),
                     "max_piece_length" => builder.max_piece_length(val.extract()?),
                     "seed_size" => builder.seed_size(val.extract()?),
+                    "space_char" => {
+                        let space_string: String = val.extract()?;
+                        if space_string.chars().count() != 1 {
+                            return Err(exceptions::Exception::py_err(
+                                "space_char must be a single char",
+                            ));
+                        } else {
+                            builder.space_char(space_string.chars().next().ok_or_else(|| {
+                                exceptions::Exception::py_err("space_char must be a single char")
+                            })?)
+                        }
+                    }
                     "special_tokens" => builder.special_tokens(
                         val.cast_as::<PyList>()?
                             .into_iter()

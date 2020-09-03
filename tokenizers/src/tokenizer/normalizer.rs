@@ -1,5 +1,3 @@
-#![allow(clippy::reversed_empty_ranges)]
-
 use crate::pattern::Pattern;
 use crate::{Offsets, Result};
 use std::ops::{Bound, RangeBounds};
@@ -1038,7 +1036,6 @@ impl From<&str> for NormalizedString {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::reversed_empty_ranges)]
     use super::*;
     use regex::Regex;
     use unicode_categories::UnicodeCategories;

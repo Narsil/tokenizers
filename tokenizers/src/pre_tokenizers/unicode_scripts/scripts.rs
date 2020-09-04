@@ -2089,5 +2089,6 @@ mod tests {
         assert_eq!(Script::Common, get_script('$'));
         assert_eq!(Script::Common, get_script('@'));
         assert_eq!(Script::Common, get_script('-'));
+        assert_eq!(Script::Common, get_script(' '));
     }
 }

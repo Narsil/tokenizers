@@ -31,7 +31,7 @@ impl Default for Metaspace {
 impl PreTokenizer for Metaspace {
     fn pre_tokenize(&self, pretokenized: &mut PreTokenizedString) -> Result<()> {
         pretokenized.split(|_, mut normalized| {
-            if self.add_prefix_space && !normalized.get().starts_with(self.replacement) {
+            if self.add_prefix_space && !normalized.get().starts_with(' ') {
                 normalized.prepend(&self.str_rep);
             }
 
@@ -130,5 +130,20 @@ mod tests {
             .decode(vec!["▁Hey".into(), "▁friend!".into()])
             .unwrap();
         assert_eq!(&res, "Hey friend!")
+    }
+
+    #[test]
+    fn empty_space() {
+        let pretok = Metaspace::new('▁', true);
+        let mut pretokenized = PreTokenizedString::from(" ");
+        pretok.pre_tokenize(&mut pretokenized).unwrap();
+        assert_eq!(
+            pretokenized
+                .get_splits(OffsetReferential::Normalized)
+                .into_iter()
+                .map(|(s, o, _)| (s, o))
+                .collect::<Vec<_>>(),
+            vec![("▁", (0, 3))]
+        );
     }
 }

@@ -600,11 +600,15 @@ where
         type_id: u32,
         offsets_type: OffsetType,
     ) -> Result<Encoding> {
+        debug!("Received {:?}", sequence);
         let encode = |is_pre_tokenized, subseq_idx, subseq| -> Result<Encoding> {
+            debug!("Sequence {:?}", subseq);
             let normalized = self
                 .added_vocabulary
                 .extract_and_normalize(self.normalizer.as_ref(), subseq);
+            debug!("Normalized {:?}", normalized);
             let pre_tokenized = self.do_pre_tokenize(normalized)?;
+            debug!("Pretokenized {:?}", pre_tokenized);
             let subseq_encoding = self.do_tokenize(
                 pre_tokenized,
                 type_id,
@@ -615,6 +619,7 @@ where
                 },
                 offsets_type,
             )?;
+            debug!("Encoding {:?}", subseq_encoding);
 
             Ok(subseq_encoding)
         };

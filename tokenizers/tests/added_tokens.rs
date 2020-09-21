@@ -1,7 +1,12 @@
 mod common;
 
 use common::*;
+use tokenizers::models::unigram::Unigram;
+use tokenizers::normalizers::unicode::NFKD;
+use tokenizers::pre_tokenizers::metaspace::Metaspace;
+use tokenizers::processors::template::TemplateProcessing;
 use tokenizers::tokenizer::AddedToken;
+use tokenizers::tokenizer::TokenizerBuilder;
 
 #[test]
 fn add_tokens() {
@@ -117,4 +122,35 @@ fn overlapping_tokens() {
     let output = tokenizer.encode(input, false).unwrap();
 
     assert_eq!(output.get_tokens(), &["I", "Ġl", "ike", "Ġda", "nci", "ng"]);
+}
+
+#[test]
+fn test_decoder_and_added_tokens() {
+    let _ = simple_logger::SimpleLogger::new().init();
+
+    let template = TemplateProcessing::builder()
+        // The first sequence has `[CLS]` first, the input, `[SEP]` at the end
+        .sequence_a(vec!["$0"])
+        .sequence_b(vec!["$1"])
+        .build()
+        .unwrap();
+    let vocab = vec![("<unk>".to_string(), 0.0), ("▁".to_string(), 0.0)];
+    let mut tokenizer = TokenizerBuilder::default()
+        .with_normalizer(Some(NFKD))
+        .with_model(Unigram::from(vocab, 0).unwrap())
+        .with_decoder(Some(Metaspace::new('▁', true)))
+        .with_pre_tokenizer(Some(Metaspace::new('▁', true)))
+        .with_post_processor(Some(template))
+        .build()
+        .unwrap();
+    let added_tokens = vec![
+        AddedToken::from("[ABC]", false),
+        AddedToken::from("[DEF]", false),
+    ];
+    tokenizer.add_tokens(&added_tokens);
+
+    let input = "[ABC] [DEF]";
+    let encoded = tokenizer.encode(input, false).unwrap();
+    let decoded = tokenizer.decode(encoded.get_ids().to_vec(), false).unwrap();
+    assert_eq!(decoded, input);
 }

@@ -44,6 +44,7 @@ pub use crate::utils::truncation::{truncate_encodings, TruncationParams, Truncat
 pub use added_vocabulary::*;
 pub use encoding::*;
 pub use normalizer::{NormalizedString, OffsetReferential, SplitDelimiterBehavior};
+pub use pre_tokenizer::OffsetType;
 pub use pre_tokenizer::*;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -969,7 +970,7 @@ where
         } else {
             None
         };
-        let words = files
+        let mut words = files
             .into_iter()
             .map(|filename| -> Result<HashMap<String, u32>> {
                 let file = File::open(filename)?;
@@ -1022,6 +1023,15 @@ where
                     Ok(acc)
                 },
             )?;
+        for added_token in self.added_vocabulary.get_vocab().keys() {
+            let test = self
+                .added_vocabulary
+                .extract_and_normalize(self.normalizer.as_ref(), &added_token);
+            let splits = test.get_splits(OffsetReferential::Original, OffsetType::Byte);
+            if splits.len() == 1 {
+                words.remove(splits[0].0);
+            }
+        }
         if let Some(pbar) = progress {
             pbar.finish();
         }
@@ -1128,5 +1138,101 @@ where
         file.write_all(&serialized.as_bytes())?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::decoders::metaspace::Metaspace;
+    use crate::normalizers::Lowercase;
+    use crate::pre_tokenizers::whitespace::WhitespaceSplit;
+    use crate::processors::template::TemplateProcessing;
+    use tempfile::NamedTempFile;
+
+    struct ModelMock;
+    impl Model for ModelMock {
+        fn tokenize(&self, _sequence: &str) -> Result<Vec<Token>> {
+            unimplemented!()
+        }
+        fn token_to_id(&self, _token: &str) -> Option<u32> {
+            None
+        }
+        fn id_to_token(&self, _id: u32) -> Option<&str> {
+            None
+        }
+        fn get_vocab(&self) -> &HashMap<String, u32> {
+            unimplemented!()
+        }
+        fn get_vocab_size(&self) -> usize {
+            0
+        }
+        fn save(&self, _folder: &Path, _name: Option<&str>) -> Result<Vec<PathBuf>> {
+            unimplemented!()
+        }
+    }
+    struct TrainerMock;
+    impl Trainer for TrainerMock {
+        type Model = ModelMock;
+        fn should_show_progress(&self) -> bool {
+            false
+        }
+        fn train(
+            &self,
+            _word_count: HashMap<String, u32>,
+        ) -> Result<(Self::Model, Vec<AddedToken>)> {
+            Ok((ModelMock, vec![]))
+        }
+        fn process_tokens(&self, words: &mut HashMap<String, u32>, tokens: Vec<String>) {
+            for token in tokens {
+                words
+                    .entry(token.clone())
+                    .and_modify(|c| *c += 1)
+                    .or_insert(1);
+            }
+        }
+    }
+
+    #[test]
+    fn test_added_vocabulary_is_ignored_by_trainer() {
+        let added_tokens = vec![AddedToken::from("[SEP]", false)];
+        let mut tokenizer = TokenizerBuilder::new()
+            .with_model(ModelMock)
+            .with_pre_tokenizer(Some(WhitespaceSplit))
+            .with_normalizer(Some(Lowercase))
+            .with_decoder(Some(Metaspace::new('x', false)))
+            .with_post_processor(Some(
+                TemplateProcessing::builder()
+                    .sequence_a(vec!["$0"])
+                    .build()
+                    .unwrap(),
+            ))
+            .build()
+            .unwrap();
+        tokenizer.add_tokens(&added_tokens);
+
+        let mut train_file = NamedTempFile::new().unwrap();
+        train_file
+            .write_all(b"I love [SEP] and chocolate.")
+            .unwrap();
+        let trainer = TrainerMock;
+        let words = tokenizer
+            .word_count(
+                &trainer,
+                vec![(*train_file.path()).to_str().unwrap().to_string()],
+            )
+            .unwrap();
+
+        assert_eq!(
+            words,
+            vec![
+                ("i".to_string(), 1),
+                ("love".to_string(), 1),
+                ("and".to_string(), 1),
+                ("chocolate.".to_string(), 1)
+            ]
+            .into_iter()
+            .collect()
+        )
     }
 }

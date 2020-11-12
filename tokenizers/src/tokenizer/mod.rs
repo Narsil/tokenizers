@@ -965,25 +965,24 @@ where
             .collect()
     }
 
-    fn process_chunk<MN, T, B>(
+    fn process_chunk<'a, MN, T, I>(
         &self,
         trainer: &T,
-        chunk: B,
+        iterator: I,
         progress: &Option<ProgressBar>,
     ) -> Result<HashMap<String, u32>>
     where
         T: Trainer<Model = MN> + Sync,
         MN: Model,
-        B: BufRead + Send,
+        I: Iterator<Item = &'a str> + Send,
     {
         // We read new lines using this API instead of the Lines Iterator
         // on purpose. We want to keep the `\n` and potential `\r` between each lines
         // We use an iterator to be able to chain with par_bridge.
-        chunk
-            .lines_with_ending()
+        iterator
             .maybe_par_bridge()
             .map_with(progress, |progress, line| -> Result<HashMap<String, u32>> {
-                let newline = line?;
+                let newline = line;
                 let b = newline.len();
                 let mut words = HashMap::new();
                 let normalized = self.do_normalize(newline)?;
@@ -1044,41 +1043,41 @@ where
         } else {
             None
         };
-        let words = files
-            .into_iter()
-            .map(|filename| -> Result<HashMap<String, u32>> {
-                let file = File::open(filename)?;
-                let file = BufReader::with_capacity(max_read, file);
-                self.process_chunk(trainer, file, &progress)
-            })
-            .try_fold(
-                HashMap::new(),
-                |mut acc, ws| -> Result<HashMap<String, u32>> {
-                    for (k, v) in ws? {
-                        acc.entry(k).and_modify(|c| *c += v).or_insert(v);
-                    }
-                    Ok(acc)
-                },
-            )?;
+        let words = HashMap::new();
+        //let words = files
+        //    .into_iter()
+        //    .map(|filename| -> Result<HashMap<String, u32>> {
+        //        let file = File::open(filename)?;
+        //        let file = BufReader::with_capacity(max_read, file);
+        //        self.process_chunk(
+        //            trainer,
+        //            file.lines_with_ending().flat_map(|line| line),
+        //            &progress,
+        //        )
+        //    })
+        //    .try_fold(
+        //        HashMap::new(),
+        //        |mut acc, ws| -> Result<HashMap<String, u32>> {
+        //            for (k, v) in ws? {
+        //                acc.entry(k).and_modify(|c| *c += v).or_insert(v);
+        //            }
+        //            Ok(acc)
+        //        },
+        //    )?;
         if let Some(pbar) = progress {
             pbar.finish();
         }
         Ok(words)
     }
 
-    pub fn feed_train_chunk<T, MN>(&mut self, trainer: &T, chunk: &str) -> Result<()>
+    pub fn feed_train<'a, T, MN, I>(&mut self, trainer: &T, iterator: I) -> Result<()>
     where
         T: Trainer<Model = MN> + Sync,
         MN: Model,
+        I: Iterator<Item = &'a str> + Send,
     {
-        let words = self.process_chunk(trainer, BufReader::new(chunk.as_bytes()), &None)?;
-        if let Some(train_words) = &mut self.words {
-            for (k, v) in words {
-                train_words.entry(k).and_modify(|c| *c += v).or_insert(v);
-            }
-        } else {
-            self.words = Some(words);
-        }
+        let words = self.process_chunk(trainer, iterator, &None)?;
+        self.words = Some(words);
         Ok(())
     }
 

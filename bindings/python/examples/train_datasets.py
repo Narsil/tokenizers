@@ -11,12 +11,8 @@ def main():
     trainer = trainers.BpeTrainer(show_progress=True)
 
     def data_iterator():
-        L = len(dataset["train"])
-        B = 30000
-        for i in tqdm.tqdm(range(0, L, B)):
-            batch = dataset["train"][i : i + B]
-            # print("H", end="", flush=True)
-            yield "".join(batch["text"])
+        for batch in tqdm.tqdm(dataset["train"]):
+            yield batch["text"]
 
     bpe_tokenizer.train_from_iterator(trainer, data_iterator())
 

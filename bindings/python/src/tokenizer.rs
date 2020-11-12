@@ -400,6 +400,24 @@ impl<'s> From<PreTokenizedEncodeInput<'s>> for tk::tokenizer::EncodeInput<'s> {
 
 type Tokenizer = TokenizerImpl<PyModel, PyNormalizer, PyPreTokenizer, PyPostProcessor, PyDecoder>;
 
+fn get_chunk<'a>(iterator: &'a mut PyIterator, n: usize) -> PyResult<Option<Vec<&'a str>>> {
+    let mut result = Vec::with_capacity(n);
+    for _ in 0..n {
+        if let Some(value) = iterator.next() {
+            let item: &PyAny = value?;
+            if let Ok(s) = item.downcast::<PyString>() {
+                let content: &str = s.to_str()?;
+                result.push(content);
+            }
+        }
+    }
+    if result.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(result))
+    }
+}
+
 /// A :obj:`Tokenizer` works as a pipeline. It processes some raw text as input
 /// and outputs an :class:`~tokenizers.Encoding`.
 ///
@@ -1038,25 +1056,13 @@ impl PyTokenizer {
     fn train_from_iterator(&mut self, trainer: &PyTrainer, iterator: &PyAny) -> PyResult<()> {
         let gil = Python::acquire_gil();
         let mut iterator: PyIterator = iterator.iter()?;
-        while let Ok(Some(content)) = {
-            if let Some(value) = iterator.next() {
-                let item: &PyAny = value?;
-                if let Ok(s) = item.downcast::<PyString>() {
-                    let content: &str = s.to_str()?;
-                    Ok(Some(content))
-                } else {
-                    Err(exceptions::PyTypeError::new_err(
-                        "Invalid string in python iterator",
-                    ))
-                }
-            } else {
-                Ok(None)
-            }
-        } {
+        let n = 30_000;
+        while let Some(chunk) = get_chunk(&mut iterator, n)? {
             self.tokenizer
-                .feed_train_chunk(trainer, content)
+                .feed_train(trainer, chunk.into_iter())
                 .map_err(|_| exceptions::PyException::new_err("Cannot feed chunk"))?;
         }
+
         gil.python().allow_threads(|| {
             ToPyResult(self.tokenizer.train_and_replace_from_buffer(trainer)).into()
         })
